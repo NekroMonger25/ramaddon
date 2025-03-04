@@ -5,7 +5,10 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Copia solo i file delle dipendenze prima (per caching ottimizzato)
-COPY package.json package-lock.json ./
+# COPY package.json package-lock.json ./
+
+COPY package.json ./
+RUN npm install --omit=dev
 
 # Installa le dipendenze
 RUN npm install
