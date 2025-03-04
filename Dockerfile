@@ -1,10 +1,12 @@
-# Usa un'immagine base di Node.js più leggera
+# Usa un'immagine base di Node.js leggera
 FROM node:18-bullseye-slim
 
-# Installa dipendenze necessarie per Puppeteer
+# Installa le dipendenze di sistema e Chromium
 RUN apt-get update && apt-get install -y \
     wget \
+    curl \
     unzip \
+    chromium \
     fonts-liberation \
     libasound2 \
     libatk-bridge2.0-0 \
@@ -26,10 +28,6 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Scarica e installa Google Chrome manualmente
-RUN wget -qO- https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb > google-chrome.deb \
-    && apt-get install -y ./google-chrome.deb \
-    && rm google-chrome.deb
 
 # Imposta la directory di lavoro
 WORKDIR /app
@@ -46,9 +44,8 @@ RUN npm install --omit=dev
 # Copia il codice sorgente
 COPY . .
 
-# Installa Puppeteer e Chromium manualmente
-RUN npm install puppeteer-extra puppeteer-extra-plugin-stealth && \
-    npx puppeteer browsers install chrome
+# Installa Puppeteer e il plugin Stealth
+RUN npm install puppeteer-extra puppeteer-extra-plugin-stealth puppeteer
 
 # Espone la porta su cui gira l'addon
 EXPOSE 7000
