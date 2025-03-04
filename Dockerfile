@@ -30,7 +30,10 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copia i file del progetto
-COPY package.json package-lock.json ./
+# COPY package.json package-lock.json ./
+
+COPY package.json ./
+RUN npm install --omit=dev
 
 # Installa le dipendenze senza Puppeteer (lo installeremo manualmente)
 RUN npm install --omit=dev
