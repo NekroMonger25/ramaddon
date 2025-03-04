@@ -7,25 +7,43 @@ import * as cheerio from 'cheerio';
 puppeteer.use(StealthPlugin());
 
 async function fetchWithPuppeteer(url) {
-    const browser = await puppeteer.launch({ headless: true });
+    console.log(`🌍 Navigando a: ${url}`);
+    
+    // 🚀 Avvia Puppeteer con le opzioni richieste da Render
+    const browser = await puppeteer.launch({
+        headless: true,
+        args: [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--no-zygote"
+        ]
+    });
+
     const page = await browser.newPage();
     
     await page.setUserAgent(
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
     );
 
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    try {
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
 
-    // Aspetta che il vero contenuto venga caricato
-    await page.waitForSelector('div.w-full.bg-gradient-to-t.from-primary', { timeout: 10000 }).catch(() => {
-        console.warn("I contenuti non sono stati trovati in tempo.");
-    });
+        // ✅ Aspetta che il contenuto si carichi correttamente
+        await page.waitForSelector('div.w-full.bg-gradient-to-t.from-primary', { timeout: 10000 });
 
-    const data = await page.content();
-    console.log("🔍 HTML recuperato:", data.substring(0, 1000)); // Stampa solo i primi 1000 caratteri
-    await browser.close();
+        // ✅ Recupera l'HTML della pagina
+        const data = await page.content();
+        console.log("🔍 HTML recuperato:", data.substring(0, 1000)); // Stampa i primi 1000 caratteri per debug
 
-    return data;
+        await browser.close();
+        return data;
+    } catch (error) {
+        console.error(`❌ Errore nel recupero della pagina ${url}:`, error);
+        await browser.close();
+        return null; // Evita crash restituendo null in caso di errore
+    }
 }
 
 const BASE_URL = 'https://ramaorientalfansub.tv/paese/corea-del-sud/';
