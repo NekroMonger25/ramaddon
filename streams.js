@@ -1,5 +1,12 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
+const axiosInstance = axios.create({
+    headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
+        'Referer': 'https://ramaorientalfansub.tv/',
+        'Accept-Language': 'en-US,en;q=0.9',
+    }
+});
 
 /**
  * Recupera il link dello stream per un episodio specifico.
@@ -58,7 +65,7 @@ async function getEpisodes(seriesLink) {
         let seriesYear = null;
 
         try {
-            const { data } = await axios.get(seriesLink);
+            const { data } = await axiosInstance.get(seriesLink);
             const $ = cheerio.load(data);
 
             // Trova un possibile anno nel titolo della serie
