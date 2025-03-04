@@ -11,7 +11,8 @@ async function fetchWithPuppeteer(url) {
     
     // 🚀 Avvia Puppeteer con le opzioni richieste da Render
     const browser = await puppeteer.launch({
-        headless: true,
+        headless: "new",
+        executablePath: "/root/.cache/puppeteer/chrome/linux-133.0.6943.141/chrome-linux64/chrome",
         args: [
             "--no-sandbox",
             "--disable-setuid-sandbox",
