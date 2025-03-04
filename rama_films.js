@@ -1,5 +1,5 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 
 const BASE_URL = 'https://ramaorientalfansub.tv/paese/corea-del-sud/';
 const ITEMS_PER_PAGE = 25;
@@ -69,7 +69,8 @@ console.log(`Totale elementi raccolti: ${catalog.length}`);
 return catalog;
 }
 
-module.exports = async (args) => {
+export default async function (args) {
     const skip = args.extra?.skip || 0;
     return { metas: await getCatalog(skip) };
 };
+

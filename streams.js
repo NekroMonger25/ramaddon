@@ -1,5 +1,8 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
+import axios from 'axios';
+import cloudscraper from 'cloudscraper';
+import * as cheerio from 'cheerio';
+import puppeteer from 'puppeteer';
+
 const axiosInstance = axios.create({
     headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
@@ -7,6 +10,24 @@ const axiosInstance = axios.create({
         'Accept-Language': 'en-US,en;q=0.9',
     }
 });
+export { axiosInstance, axios, puppeteer, cheerio };
+
+
+async function fetchSeriesData(seriesLink) {
+    if (!seriesLink) {
+        throw new Error("seriesLink non definito!");
+    }
+
+    // const data = await fetchWithCloudscraper(seriesLink);
+    
+    // Controllo se data è una stringa valida
+    if (typeof data !== "string" || !data.trim()) {
+        console.error("Errore: Il contenuto della pagina non è valido.");
+        return null;
+    }
+
+    return cheerio.load(data);
+}
 
 /**
  * Recupera il link dello stream per un episodio specifico.
@@ -18,14 +39,9 @@ async function getStream(episodeLink) {
         const { data } = await axios.get(episodeLink);
         const $ = cheerio.load(data);
 
-        // Trova l'iframe nella pagina dell'episodio
-        // const iframeSrc = $('iframe').attr('src');
         const iframeSrc = encodeURI($('iframe').attr('src'));
         console.log(`Stream trovato: ${decodeURI(iframeSrc)}`);
 
-
-
-        // Verifica che il link dell'iframe punti al server corretto
         if (iframeSrc && iframeSrc.startsWith('https://server1.streamingrof.online/02-DRAMACOREANI')) {
             return iframeSrc;
         } else {
@@ -36,7 +52,6 @@ async function getStream(episodeLink) {
         console.log(`Analizzando stream per: ${episodeLink}`);
         console.log('Iframe trovato:', iframeSrc);
         console.error(`Errore durante il recupero dello stream per ${episodeLink}:`, err);
-        
         return null;
     }
 }
@@ -46,7 +61,6 @@ async function getStream(episodeLink) {
  * @param {string} seriesLink - URL della pagina della serie.
  * @returns {Array} - Lista di episodi con titolo, thumbnail e link allo stream.
  */
-
 async function getEpisodes(seriesLink) {
     try {
         const episodes = [];
@@ -54,11 +68,9 @@ async function getEpisodes(seriesLink) {
 
         console.log('Chiamata a getEpisodes con URL:', seriesLink);
 
-        // Effettua una richiesta alla pagina della serie per ottenere l'anno
         let seriesId = seriesLink.split('/').filter(Boolean).pop();
         console.log('ID della serie estratto prima della pulizia:', seriesId);
 
-        // Rimuove virgole e spazi
         seriesId = seriesId.replace(/,/g, '').replace(/\s+/g, '-').toLowerCase();
         console.log('ID della serie dopo la pulizia:', seriesId);
 
@@ -68,7 +80,6 @@ async function getEpisodes(seriesLink) {
             const { data } = await axiosInstance.get(seriesLink);
             const $ = cheerio.load(data);
 
-            // Trova un possibile anno nel titolo della serie
             const titleText = $('title').text();
             const yearMatch = titleText.match(/\b(19|20)\d{2}\b/);
             if (yearMatch) {
@@ -95,8 +106,9 @@ async function getEpisodes(seriesLink) {
                     thumbnail: '',
                     streams: [
                         {
-                            title: `Episodio ${episodeNumber}`, // Aggiungi un titolo per lo stream
-                            url: stream
+                            title: `Episodio ${episodeNumber}`,
+                            url: stream,
+                            type: "video/mp4"
                         }
                     ]
                 });
@@ -113,4 +125,9 @@ async function getEpisodes(seriesLink) {
     }
 }
 
-module.exports = { getEpisodes };
+export { getEpisodes };
+
+(async () => {
+    const seriesLink = "https://ramaorientalfansub.tv/drama/";
+    const $ = await fetchSeriesData(seriesLink);
+})();

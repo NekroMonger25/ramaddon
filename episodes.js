@@ -1,13 +1,26 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
-const { getEpisodes } = require('./streams');
+import axios from 'axios';
+import cloudscraper from 'cloudscraper';
+import * as cheerio from 'cheerio';
+import { getEpisodes } from './streams.js';
+
 const axiosInstance = axios.create({
     headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
-        'Referer': 'https://ramaorientalfansub.tv/',
+        'Referer': 'https://ramaorientalfansub.tv/paese/corea-del-sud/',
         'Accept-Language': 'en-US,en;q=0.9',
     }
 });
+export { axiosInstance, axios, cloudscraper, cheerio };
+
+async function fetchWithCloudscraper(url) {
+    try {
+        const data = await cloudscraper.get(url);
+        return data;
+    } catch (error) {
+        console.error("Errore con Cloudscraper:", error);
+        return null;
+    }
+}
 
 async function getMeta(id) {
     const meta = { id, type: 'series', name: '', poster: '', episodes: [] };
@@ -34,4 +47,4 @@ async function getMeta(id) {
     return { meta };
 }
 
-module.exports = { getMeta };
+export { getMeta };

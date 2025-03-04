@@ -1,8 +1,10 @@
-const { addonBuilder, serveHTTP } = require('stremio-addon-sdk');
-const seriesCatalog = require('./rama_series');
-const filmsCatalog = require('./rama_films');
-const { getMeta } = require('./episodes');
-const { getEpisodes } = require('./streams');
+import pkg from 'stremio-addon-sdk';
+import seriesCatalog from './rama_series.js';
+import filmsCatalog from './rama_films.js';
+import { getMeta } from './episodes.js';
+import { getEpisodes } from './streams.js';
+
+const { addonBuilder, serveHTTP } = pkg;
 
 const manifest = {
     "id": "community.ramaorientalfansub",
@@ -46,14 +48,17 @@ builder.defineStreamHandler(async ({ type, id }) => {
         return Promise.resolve({ streams: [] });
     }
 
-    const streams = episodes.map(ep => ({
-        title: ep.title,
-        url: ep.stream,
-        behaviorHints: {
-            bingeGroup: id, // Aiuta Stremio a riconoscere gli episodi
-            notWebReady: false // Assicura che venga letto come un video MP4 diretto
-        }
-    }));
+    const streams = episodes.flatMap(ep => 
+        ep.streams.map(stream => ({
+            title: `${ep.title} - ${stream.title}`,
+            url: stream.url,
+            type: "video/mp4",
+            behaviorHints: {
+                bingeGroup: id, 
+                notWebReady: false 
+            }
+        }))
+    );
 
     return Promise.resolve({ streams });
 });
@@ -71,7 +76,7 @@ builder.defineCatalogHandler(async (args) => {
 // **GESTORE METADATI**
 builder.defineMetaHandler(async (args) => getMeta(args.id));
 
-module.exports = builder.getInterface();
+export default builder.getInterface();
 
 // **AVVIA IL SERVER**
 serveHTTP(builder.getInterface(), { port: 7000 });

@@ -1,5 +1,32 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
+// import axios from 'axios';
+// import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import * as cheerio from 'cheerio';
+
+puppeteer.use(StealthPlugin());
+
+async function fetchWithPuppeteer(url) {
+    const browser = await puppeteer.launch({ headless: true });
+    const page = await browser.newPage();
+    
+    await page.setUserAgent(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
+    );
+
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+    // Aspetta che il vero contenuto venga caricato
+    await page.waitForSelector('div.w-full.bg-gradient-to-t.from-primary', { timeout: 10000 }).catch(() => {
+        console.warn("I contenuti non sono stati trovati in tempo.");
+    });
+
+    const data = await page.content();
+    console.log("🔍 HTML recuperato:", data.substring(0, 1000)); // Stampa solo i primi 1000 caratteri
+    await browser.close();
+
+    return data;
+}
 
 const BASE_URL = 'https://ramaorientalfansub.tv/paese/corea-del-sud/';
 const ITEMS_PER_PAGE = 25;
@@ -16,7 +43,8 @@ async function getCatalog(skip = 0) {
         console.log(`Richiedendo pagina: ${pageNumber}`);
 
         try {
-            const { data } = await axios.get(pageUrl);
+            const data = await fetchWithPuppeteer(pageUrl);
+            // const { data } = await axios.get(pageUrl);
             const $ = cheerio.load(data);
             let foundItemsOnPage = false;
 
@@ -69,7 +97,7 @@ async function getCatalog(skip = 0) {
     return catalog;
 }
 
-module.exports = async (args) => {
+export default async function (args) {
     const skip = args.extra?.skip || 0;
     return { metas: await getCatalog(skip) };
 };
