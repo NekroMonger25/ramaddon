@@ -12,7 +12,7 @@ async function fetchWithPuppeteer(url) {
     // 🚀 Avvia Puppeteer con le opzioni richieste da Render
     const browser = await puppeteer.launch({
         headless: "new",
-        executablePath: "/root/.cache/puppeteer/chrome/linux-133.0.6943.141/chrome-linux64/chrome",
+        executablePath: "/usr/bin/google-chrome-stable", // Percorso corretto su Render
         args: [
             "--no-sandbox",
             "--disable-setuid-sandbox",
@@ -22,28 +22,35 @@ async function fetchWithPuppeteer(url) {
         ]
     });
 
-    const page = await browser.newPage();
-    
-    await page.setUserAgent(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
-    );
-
     try {
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+        const page = await browser.newPage();
+        await page.setUserAgent(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
+        );
 
-        // ✅ Aspetta che il contenuto si carichi correttamente
-        await page.waitForSelector('div.w-full.bg-gradient-to-t.from-primary', { timeout: 10000 });
+        console.log(`🌍 Navigando a: ${url}`);
+        
+        // Aumenta il timeout a 60 secondi
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
-        // ✅ Recupera l'HTML della pagina
+        await page.waitForSelector('div.w-full.bg-gradient-to-t.from-primary', { timeout: 20000 }).catch(() => {
+            console.warn("⚠️ Elemento non trovato, la pagina potrebbe essere vuota.");
+        });
+
         const data = await page.content();
-        console.log("🔍 HTML recuperato:", data.substring(0, 1000)); // Stampa i primi 1000 caratteri per debug
-
         await browser.close();
+
+        if (!data || data.trim() === "") {
+            console.error(`❌ Errore: la pagina ${url} è vuota.`);
+            return null;
+        }
+
+        console.log("✅ Pagina caricata con successo.");
         return data;
     } catch (error) {
         console.error(`❌ Errore nel recupero della pagina ${url}:`, error);
         await browser.close();
-        return null; // Evita crash restituendo null in caso di errore
+        return null;
     }
 }
 
