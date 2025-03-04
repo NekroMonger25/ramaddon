@@ -1,0 +1,24 @@
+{
+  "id": "community.ramaorientalfansub",
+  "version": "1.0.5",
+  "name": "Rama Oriental Fansub",
+  "description": "Addon per visualizzare serie e film coreani dal sito Rama Oriental Fansub",
+  "catalogs": [
+    {
+      "type": "series",
+      "id": "rama_series",
+      "name": "Serie Coreane",
+      "extra": [{ "name": "skip" }]
+    },
+    {
+      "type": "movie",
+      "id": "rama_films",
+      "name": "Film Coreani",
+      "extra": [{ "name": "skip" }]
+    }
+  ],
+  "resources": ["catalog", "meta", "stream"],
+  "types": ["series", "movie"],
+  "logo": "https://ramaorientalfansub.tv/wp-content/uploads/2023/10/cropped-Logo-1.png",
+  "background": "https://ramaorientalfansub.tv/wp-content/uploads/2023/10/2860055-e1696595653601.jpg"
+}
