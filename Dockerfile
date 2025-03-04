@@ -26,6 +26,11 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Scarica e installa Google Chrome manualmente
+RUN wget -qO- https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb > google-chrome.deb \
+    && apt-get install -y ./google-chrome.deb \
+    && rm google-chrome.deb
+
 # Imposta la directory di lavoro
 WORKDIR /app
 
