@@ -2,56 +2,31 @@
 // import puppeteer from 'puppeteer';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+// import RecaptchaPlugin from 'puppeteer-extra-plugin-recaptcha';
 import * as cheerio from 'cheerio';
 
 puppeteer.use(StealthPlugin());
 
 async function fetchWithPuppeteer(url) {
-    console.log(`🌍 Navigando a: ${url}`);
+    const browser = await puppeteer.launch({ headless: true });
+    const page = await browser.newPage();
     
-    // 🚀 Avvia Puppeteer con le opzioni richieste da Render
-    const browser = await puppeteer.launch({
-        headless: "new",
-        executablePath: "/usr/bin/chromium", // Percorso corretto su Render
-        args: [
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-gpu",
-            "--no-zygote"
-        ]
+    await page.setUserAgent(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
+    );
+
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+    // Aspetta che il vero contenuto venga caricato
+    await page.waitForSelector('div.w-full.bg-gradient-to-t.from-primary', { timeout: 20000 }).catch(() => {
+        console.warn("I contenuti non sono stati trovati in tempo.");
     });
 
-    try {
-        const page = await browser.newPage();
-        await page.setUserAgent(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
-        );
+    const data = await page.content();
+    console.log("🔍 HTML recuperato:", data.substring(0, 1000)); // Stampa solo i primi 1000 caratteri
+    await browser.close();
 
-        console.log(`🌍 Navigando a: ${url}`);
-        
-        // Aumenta il timeout a 60 secondi
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-
-        await page.waitForSelector('div.w-full.bg-gradient-to-t.from-primary', { timeout: 20000 }).catch(() => {
-            console.warn("⚠️ Elemento non trovato, la pagina potrebbe essere vuota.");
-        });
-
-        const data = await page.content();
-        await browser.close();
-
-        if (!data || data.trim() === "") {
-            console.error(`❌ Errore: la pagina ${url} è vuota.`);
-            return null;
-        }
-
-        console.log("✅ Pagina caricata con successo.");
-        return data;
-    } catch (error) {
-        console.error(`❌ Errore nel recupero della pagina ${url}:`, error);
-        await browser.close();
-        return null;
-    }
+    return data;
 }
 
 const BASE_URL = 'https://ramaorientalfansub.tv/paese/corea-del-sud/';
