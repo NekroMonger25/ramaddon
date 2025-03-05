@@ -1,16 +1,17 @@
-import axios from 'axios';
+// import axios from 'axios';
 import cloudscraper from 'cloudscraper';
 import * as cheerio from 'cheerio';
-import puppeteer from 'puppeteer';
 
-const axiosInstance = axios.create({
-    headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
-        'Referer': 'https://ramaorientalfansub.tv/',
-        'Accept-Language': 'en-US,en;q=0.9',
+
+async function fetchWithCloudscraper(url) {
+    try {
+        const data = await cloudscraper.get(url);
+        return data;
+    } catch (error) {
+        console.error("Errore con Cloudscraper:", error);
+        return null;
     }
-});
-export { axiosInstance, axios, puppeteer, cheerio };
+}
 
 
 async function fetchSeriesData(seriesLink) {
@@ -18,7 +19,7 @@ async function fetchSeriesData(seriesLink) {
         throw new Error("seriesLink non definito!");
     }
 
-    // const data = await fetchWithCloudscraper(seriesLink);
+    const data = await fetchWithCloudscraper(seriesLink);
     
     // Controllo se data è una stringa valida
     if (typeof data !== "string" || !data.trim()) {
@@ -35,8 +36,9 @@ async function fetchSeriesData(seriesLink) {
  * @returns {string|null} - URL dello stream o null se non trovato.
  */
 async function getStream(episodeLink) {
+    let iframeSrc =null;
     try {
-        const { data } = await axios.get(episodeLink);
+        const { data } = fetchWithCloudscraper(episodeLink);
         const $ = cheerio.load(data);
 
         const iframeSrc = encodeURI($('iframe').attr('src'));

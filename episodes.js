@@ -29,7 +29,7 @@ async function getMeta(id) {
     const seriesLink = `https://ramaorientalfansub.tv/drama/${baseId}/`;
 
     try {
-        const { data } = await axiosInstance.get(seriesLink);
+        const data = await fetchWithCloudscraper(seriesLink);
         const $ = cheerio.load(data);
 
         meta.name = $('a.text-accent').text().trim();
