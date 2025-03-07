@@ -75,8 +75,8 @@ async function getCatalog(skip = 0) {
             const tagText = tagElement.text().trim().toLowerCase();
             let extraTag = null;
 
-            if (tagText.includes('completed')) {
-                extraTag = 'completed';
+            if (tagText.includes('Programmato')) {
+                extraTag = 'Programmato';
             } else if (tagText.includes('simulcast')) {
                 extraTag = 'simulcast';
             }
