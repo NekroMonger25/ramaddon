@@ -24,29 +24,41 @@ const manifest = {
             "extra": [{ "name": "skip" }]
         }
     ],
-    "resources": ["catalog", "meta", "stream"], // Aggiunto stream
+    "resources": ["catalog", "meta", "stream"],
     "types": ["series", "movie"],
     "logo": "https://ramaorientalfansub.tv/wp-content/uploads/2023/10/cropped-Logo-1.png",
     "background": "https://ramaorientalfansub.tv/wp-content/uploads/2023/10/2860055-e1696595653601.jpg"
 };
 
 const builder = new addonBuilder(manifest);
+const metaCache = new Map();
 
-// **GESTORE STREAM**
 builder.defineStreamHandler(async ({ type, id }) => {
     if (type !== "series") {
         return Promise.resolve({ streams: [] });
     }
 
-    // console.log(`Richiesta stream per ID: ${id}`); // Rimosso console.log
-    const meta = await getMeta(id); // Ottieni i metadati per accedere agli episodi
-    const episodes = meta.meta.episodes;
-    if (!episodes || episodes.length === 0) {
-        // console.warn(`Nessun episodio trovato per ${id}`); // Rimosso console.warn
+    let meta = null;
+
+    if (metaCache.has(id)) {
+        meta = metaCache.get(id);
+    } else {
+        try {
+            const metaResult = await getMeta(id);
+            meta = metaResult.meta;
+            metaCache.set(id, meta);
+        } catch (error) {
+            console.error(`Errore nel caricamento dei metadati per ${id}:`, error);
+            return Promise.resolve({ streams: [] });
+        }
+    }
+
+    if (!meta || !meta.episodes || meta.episodes.length === 0) {
+        console.warn(`Nessun episodio trovato per ${id}`);
         return Promise.resolve({ streams: [] });
     }
 
-    const streams = episodes.flatMap(ep =>
+    const streams = meta.episodes.flatMap(ep =>
         ep.streams.map(stream => ({
             title: `${ep.title} - ${stream.title}`,
             url: stream.url,
@@ -57,10 +69,10 @@ builder.defineStreamHandler(async ({ type, id }) => {
             }
         }))
     );
+
     return Promise.resolve({ streams });
 });
 
-// **GESTORE CATALOGHI**
 builder.defineCatalogHandler(async (args) => {
     if (args.type === 'series' && args.id === 'rama_series') {
         return seriesCatalog(args);
@@ -69,15 +81,26 @@ builder.defineCatalogHandler(async (args) => {
     }
 });
 
-// **GESTORE METADATI**
 builder.defineMetaHandler(async (args) => {
-    const meta = await getMeta(args.id);
-    // Assicurati di preservare il campo 'extra'
-    return { meta: { ...meta.meta, extra: meta.meta.extra } };
+    let meta = null;
+
+    if (metaCache.has(args.id)) {
+        meta = { meta: metaCache.get(args.id) };
+    } else {
+        try {
+            const metaResult = await getMeta(args.id);
+            meta = metaResult.meta;
+            metaCache.set(args.id, meta);
+        } catch (error) {
+            console.error(`Errore nel caricamento dei metadati per ${args.id}:`, error);
+            return { meta: null };
+        }
+    }
+
+    return { meta: { ...meta, extra: meta.extra } };
 });
 
 export default builder.getInterface();
 
-// **AVVIA IL SERVER**
 serveHTTP(builder.getInterface(), { port: 7000 });
-// console.log(`Addon server is running at http://localhost:7000/manifest.json`); // Rimosso console.log
+console.log(`Addon server is running at http://localhost:7000/manifest.json`);
