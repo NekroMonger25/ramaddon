@@ -2,7 +2,6 @@ import pkg from 'stremio-addon-sdk';
 import seriesCatalog from './rama_series.js';
 import filmsCatalog from './rama_films.js';
 import { getMeta } from './episodes.js';
-import { getEpisodes } from './streams.js';
 
 const { addonBuilder, serveHTTP } = pkg;
 
@@ -40,29 +39,27 @@ builder.defineStreamHandler(async ({ type, id }) => {
     }
 
     console.log(`Richiesta stream per ID: ${id}`);
-
-    const episodes = await getEpisodes(`https://ramaorientalfansub.tv/drama/${id}/`);
+    const meta = await getMeta(id);  // Ottieni i metadati per accedere agli episodi
+    const episodes = meta.meta.episodes;
 
     if (!episodes || episodes.length === 0) {
         console.warn(`Nessun episodio trovato per ${id}`);
         return Promise.resolve({ streams: [] });
     }
 
-    const streams = episodes.flatMap(ep => 
+    const streams = episodes.flatMap(ep =>
         ep.streams.map(stream => ({
             title: `${ep.title} - ${stream.title}`,
             url: stream.url,
             type: "video/mp4",
             behaviorHints: {
-                bingeGroup: id, 
-                notWebReady: false 
+                bingeGroup: id,
+                notWebReady: false
             }
         }))
     );
-
     return Promise.resolve({ streams });
 });
-
 
 // **GESTORE CATALOGHI**
 builder.defineCatalogHandler(async (args) => {
@@ -74,10 +71,14 @@ builder.defineCatalogHandler(async (args) => {
 });
 
 // **GESTORE METADATI**
-builder.defineMetaHandler(async (args) => getMeta(args.id));
+builder.defineMetaHandler(async (args) => {
+    const meta = await getMeta(args.id);
+    // Assicurati di preservare il campo 'extra'
+    return { meta: { ...meta.meta, extra: meta.meta.extra } };
+});
 
 export default builder.getInterface();
 
 // **AVVIA IL SERVER**
-serveHTTP(builder.getInterface(), { port: 7000 });
+serveHTTP(builder.getInterface(), {port: 7000});
 console.log(`Addon server is running at http://localhost:7000/manifest.json`);
