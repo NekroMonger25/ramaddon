@@ -89,7 +89,7 @@ async function getEpisodes(seriesLink, $) {
                 episodes.push({
                     id: `episodio-${episodeNumber}`,
                     title: `${episodeNumber}`,
-                    thumbnail: 'div.swiper-slide:nth-child(1) > a:nth-child(1) > div:nth-child(1)',
+                    thumbnail: 'div.swiper-slide:nth-child(1)',
                     streams: [{
                         title: `Episodio ${episodeNumber}`,
                         url: stream,
