@@ -31,7 +31,7 @@ async function fetchWithCloudscraper(url) {
 
 const BASE_URL = 'https://ramaorientalfansub.tv/paese/corea-del-sud/';
 const ITEMS_PER_PAGE = 25;
-const MAX_PAGES = 35;
+const MAX_PAGES = 32;
 const catalogCache = new Map();
 
 async function getCatalog(skip = 0) {
