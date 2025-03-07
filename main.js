@@ -15,13 +15,13 @@ const manifest = {
             "type": "series",
             "id": "rama_series",
             "name": "Serie Coreane",
-            "extra": [{"name": "skip"}]
+            "extra": [{ "name": "skip" }]
         },
         {
             "type": "movie",
             "id": "rama_films",
             "name": "Film Coreani",
-            "extra": [{"name": "skip"}]
+            "extra": [{ "name": "skip" }]
         }
     ],
     "resources": ["catalog", "meta", "stream"], // Aggiunto stream
@@ -38,12 +38,11 @@ builder.defineStreamHandler(async ({ type, id }) => {
         return Promise.resolve({ streams: [] });
     }
 
-    console.log(`Richiesta stream per ID: ${id}`);
-    const meta = await getMeta(id);  // Ottieni i metadati per accedere agli episodi
+    // console.log(`Richiesta stream per ID: ${id}`); // Rimosso console.log
+    const meta = await getMeta(id); // Ottieni i metadati per accedere agli episodi
     const episodes = meta.meta.episodes;
-
     if (!episodes || episodes.length === 0) {
-        console.warn(`Nessun episodio trovato per ${id}`);
+        // console.warn(`Nessun episodio trovato per ${id}`); // Rimosso console.warn
         return Promise.resolve({ streams: [] });
     }
 
@@ -80,5 +79,5 @@ builder.defineMetaHandler(async (args) => {
 export default builder.getInterface();
 
 // **AVVIA IL SERVER**
-serveHTTP(builder.getInterface(), {port: 7000});
-console.log(`Addon server is running at http://localhost:7000/manifest.json`);
+serveHTTP(builder.getInterface(), { port: 7000 });
+// console.log(`Addon server is running at http://localhost:7000/manifest.json`); // Rimosso console.log

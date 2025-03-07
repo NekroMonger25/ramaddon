@@ -18,15 +18,16 @@ function getRandomHeaders() {
     };
 }
 
+// Funzione per effettuare richieste con Cloudscraper
 async function fetchWithCloudscraper(url) {
     try {
         const data = await cloudscraper.get({
             uri: url,
-            headers: getRandomHeaders() // Aggiungi headers casuali
+            headers: getRandomHeaders()
         });
         return data;
     } catch (error) {
-        console.error("Errore con Cloudscraper:", error);
+        // console.error("Errore con Cloudscraper:", error);
         return null;
     }
 }
@@ -42,12 +43,11 @@ async function getCatalog(skip = 0) {
 
     while (catalog.length < ITEMS_PER_PAGE && pagesChecked < MAX_PAGES) {
         const pageUrl = `${BASE_URL}page/${pageNumber}/`;
-        console.log(`Richiedendo pagina: ${pageNumber}`);
-
+        // console.log(`Richiedendo pagina: ${pageNumber}`);
         try {
             const data = await fetchWithCloudscraper(pageUrl);
             if (!data) {
-                console.warn(`Nessun dato ricevuto per ${pageUrl}`);
+                // console.warn(`Nessun dato ricevuto per ${pageUrl}`);
                 pagesChecked++;
                 pageNumber++;
                 continue;
@@ -65,8 +65,7 @@ async function getCatalog(skip = 0) {
                 const poster = $(element).find('img').attr('src');
                 const tagElement = $(element).find('.inline-block.md\\:my-3.uppercase');
                 const tagText = tagElement.text().trim().toLowerCase();
-
-                let extraTag = null; // Inizializza la variabile per il tag extra
+                let extraTag = null;
 
                 if (tagText.includes('completed')) {
                     extraTag = 'completed';
@@ -74,7 +73,7 @@ async function getCatalog(skip = 0) {
                     extraTag = 'simulcast';
                 }
 
-                if (tagText.includes('tv')) { //Controlla solo il tag TV
+                if (tagText.includes('tv')) {
                     if (title && link) {
                         const formattedTitle = title.replace(/\s+/g, '-').toLowerCase().replace(/[()]/g, '');
                         const meta = {
@@ -86,31 +85,32 @@ async function getCatalog(skip = 0) {
                             imdbRating: "N/A",
                             released: 2024,
                         };
+
                         if (extraTag) {
-                            meta.extra = { tag: extraTag }; // Aggiungi il tag extra ai metadati
+                            meta.extra = { tag: extraTag };
                         }
+
                         catalog.push(meta);
                         foundItemsOnPage = true;
                     }
                 }
             });
 
-            console.log(`Pagina ${pageNumber}: trovati ${foundItemsOnPage ? 'alcuni' : 'nessun'} elementi.`);
+            // console.log(`Pagina ${pageNumber}: trovati ${foundItemsOnPage ? 'alcuni' : 'nessun'} elementi.`);
             if (!foundItemsOnPage) {
-                console.warn(`Pagina ${pageNumber} vuota.`);
+                // console.warn(`Pagina ${pageNumber} vuota.`);
             }
         } catch (error) {
-            console.error(`Errore nel caricamento della pagina ${pageNumber}:`, error);
+            // console.error(`Errore nel caricamento della pagina ${pageNumber}:`, error);
         }
 
         // Aggiungi un ritardo tra le richieste
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Aspetta 1 secondo
-
+        await new Promise(resolve => setTimeout(resolve, 1000));
         pageNumber++;
         pagesChecked++;
     }
 
-    console.log(`Totale elementi raccolti: ${catalog.length}`);
+    // console.log(`Totale elementi raccolti: ${catalog.length}`);
     return catalog;
 }
 
