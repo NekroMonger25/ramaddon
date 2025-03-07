@@ -103,7 +103,7 @@ async function getEpisodes(seriesLink) {
                 episodes.push({
                     id: `episodio-${episodeNumber}`,
                     title: `Episodio ${episodeNumber}`,
-                    thumbnail: '',
+                    thumbnail: 'https://ramaorientalfansub.tv/wp-content/uploads/2023/10/cropped-Logo-1.png',
                     streams: [
                         {
                             title: `Episodio ${episodeNumber}`,
