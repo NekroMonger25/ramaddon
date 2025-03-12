@@ -192,7 +192,7 @@ async function getEpisodes(seriesLink, baseId) { // baseId come parametro
                 console.warn(`Nessuno stream trovato per ${episodeUrl}`);
             }
 
-                const $$ = cheerio.load(episodeData); // Usa un'istanza separata di Cheerio
+               // const $$ = cheerio.load(episodeData); // Usa un'istanza separata di Cheerio
 
                 // **Selettore per la miniatura**
                 const thumbnailElement = $$('div.thumbnail_url_episode_list img.lazyloaded');
