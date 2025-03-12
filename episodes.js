@@ -131,7 +131,10 @@ async function getMeta(id) {
     return { meta };
 }
 
-async function getEpisodes(seriesLink, $, baseId) { // baseId come parametro
+// episodes.js
+// ... (tutto il codice esistente) ...
+
+async function getEpisodes(seriesLink, baseId) { // baseId come parametro
     try {
         const episodes = [];
         const baseEpisodeUrl = seriesLink.replace('/drama/', '/watch/');
@@ -151,20 +154,43 @@ async function getEpisodes(seriesLink, $, baseId) { // baseId come parametro
 
         let episodeNumber = 1;
         while (true) {
-            const episodeId = seriesYear ? `${baseId}-${seriesYear}` : baseId; // Usa baseId
-            const episodeLink = `https://ramaorientalfansub.tv/watch/${episodeId}-episodio-${episodeNumber}/`;
-            try {
-                const stream = await getStream(episodeLink);
-                if (!stream) {
-                    console.warn(`Nessuno stream trovato per ${episodeLink}. Interrompo.`);
-                    break; // Interrompi il ciclo while
-                }
+            const episodeId = seriesYear
+                ? `${seriesId}-episodio-${episodeNumber}-${seriesYear}`
+                : `${seriesId}-episodio-${episodeNumber}`;
+            const episodeUrl = `${baseEpisodeUrl}${episodeId}/`;
+            const episodeUrlWithoutYear = `${baseEpisodeUrl}${seriesId}-episodio-${episodeNumber}/`;
+            let episodeLink = episodeUrl;
 
-                const episodeData = await fetchWithCloudscraper(episodeLink);
+            // Prova prima l'URL con l'anno, poi senza
+            let episodeData = await fetchWithCloudscraper(episodeUrl);
+            if (!episodeData) {
+                episodeLink = episodeUrlWithoutYear;
+                episodeData = await fetchWithCloudscraper(episodeUrlWithoutYear);
                 if (!episodeData) {
-                    console.warn(`Nessun dato ricevuto per ${episodeLink} durante il recupero della miniatura.`);
-                    break;
+                    console.log(`Nessun episodio trovato per ${episodeUrl} o ${episodeUrlWithoutYear}`);
+                    break; // Esci dal ciclo se non trovi l'episodio
                 }
+            }
+
+            const $$ = cheerio.load(episodeData);
+            const episodeTitle = $$('h1.entry-title').text().trim();
+            if (!episodeTitle) {
+                console.log(`Titolo episodio non trovato per ${episodeUrl}`);
+                break; // Esci se non trovi il titolo
+            }
+
+            const stream = await getStream(episodeLink);
+            if (stream) {
+                episodes.push({
+                    id: episodeId,
+                    title: episodeTitle,
+                    released: new Date(),
+                    streams: [{ url: stream, title: 'ROF' }]
+                });
+                console.log(`Aggiunto episodio: ${episodeTitle} da ${episodeUrl}`);
+            } else {
+                console.warn(`Nessuno stream trovato per ${episodeUrl}`);
+            }
 
                 const $$ = cheerio.load(episodeData); // Usa un'istanza separata di Cheerio
 
@@ -206,4 +232,4 @@ async function getEpisodes(seriesLink, $, baseId) { // baseId come parametro
 }
 
 
-export { getMeta };
+export { getMeta, getEpisodes }; // Esporta getEpisodes
