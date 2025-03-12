@@ -72,13 +72,14 @@ async function fetchWithCloudscraper(url, retries = 2) {
 }
 
 async function getMeta(id) {
-    const meta = { id, type: 'series', name: '', poster: '', episodes: [] };
+    const meta = { id, type: 'series', name: '', poster: '', episodes: null };
     const cleanId = id.replace(/,/g, '-').toLowerCase();
     const baseId = cleanId.replace(/-\d{4}$/, '');
     const seriesLink = `https://ramaorientalfansub.tv/drama/${baseId}/`;
 
     if (metaCache.has(id)) {
-        return { meta: metaCache.get(id) };
+        const cachedMeta = metaCache.get(id);
+        return { meta: { ...cachedMeta } }; // Restituisci una copia per evitare modifiche dirette
     }
 
     try {
@@ -91,11 +92,25 @@ async function getMeta(id) {
         const $ = cheerio.load(data);
         meta.name = $('a.text-accent').text().trim();
         meta.poster = $('img.wp-post-image').attr('src');
+        // **NUOVA LOGICA PER RECUPERARE LA THUMBNAIL**
+    let thumbnail = $('div.thumbnail_url_episode_list > img').attr('data-src'); // Prova a prendere l'immagine con il nuovo selettore
+    if (!thumbnail) {
+      thumbnail = $('img.wp-post-image').attr('src'); // Se non la trova, usa il metodo precedente
+      console.log('Usando thumbnail wp-post-image'); // Log per debug
+    } else {
+      console.log('Usando thumbnail thumbnail_url_episode_list'); // Log per debug
+    }
+    meta.poster = thumbnail; // Assegna la thumbnail (trovata con uno dei due metodi) al poster
+
         let description = $('div.font-light > div:nth-child(1)').text().trim();
         if (meta.extra && meta.extra.tag) {
             description += ` [${meta.extra.tag.toUpperCase()}]`;
         }
         meta.description = description;
+        meta.seriesLink = seriesLink;
+        meta.baseId = baseId;
+
+        metaCache.set(id, meta);
 
         // Recupera gli episodi
         meta.episodes = await getEpisodes(seriesLink, $, baseId); // Passa baseId a getEpisodes
@@ -154,7 +169,7 @@ async function getEpisodes(seriesLink, $, baseId) { // baseId come parametro
                 const $$ = cheerio.load(episodeData); // Usa un'istanza separata di Cheerio
 
                 // **Selettore per la miniatura**
-                const thumbnailElement = $$('div.thumbnail_url_episode_list');
+                const thumbnailElement = $$('div.thumbnail_url_episode_list img.lazyloaded');
                 let thumbnailUrl = thumbnailElement.attr('data-src');
 
                 if (!thumbnailUrl) {

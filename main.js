@@ -34,12 +34,20 @@ builder.defineStreamHandler(async ({ type, id }) => {
         if (type !== "series") return { streams: [] };
 
         let meta = metaCache.get(id);
-        if (!meta || Date.now() - meta.timestamp > META_CACHE_TTL) {
-            const result = await getMeta(id);
-            meta = result.meta;
-            metaCache.set(id, { ...meta, timestamp: Date.now() });
-        }
+        if (!meta) {
+          const metaResult = await getMeta(id);
+          meta = metaResult.meta;
+          metaCache.set(id, meta);
+      }
 
+      // Carica gli episodi solo se non sono già stati caricati
+      if (!meta.episodes) {
+        console.log(`Caricamento episodi per ${id}`);
+        meta.episodes = await getEpisodes(meta.seriesLink, meta.baseId);
+        metaCache.set(id, meta); // Aggiorna la cache con gli episodi
+    }
+
+    if (meta.episodes) {
         return {
             streams: meta.episodes?.flatMap(ep => 
                 ep.streams.map(stream => ({
@@ -48,8 +56,13 @@ builder.defineStreamHandler(async ({ type, id }) => {
                     type: "video/mp4",
                     behaviorHints: { bingeGroup: id }
                 }))
-            ) || []
+            )
         };
+      } else {
+        console.warn(`Nessun episodio trovato per ${id}`);
+        return { streams: [] };
+      }
+      
     } catch (error) {
         console.error(`Handler Error: ${error.message}`);
         return { streams: [] };
