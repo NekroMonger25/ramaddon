@@ -1,8 +1,7 @@
 // main.js
 import pkg from 'stremio-addon-sdk';
 import seriesCatalog from './rama_series.js';
-import { getMeta } from './episodes.js';
-import { getEpisodes } from './episodes.js'; // Importa getEpisodes da episodes.js
+import { getMeta, getEpisodes } from './episodes.js'; // Importa getEpisodes
 
 const { addonBuilder, serveHTTP } = pkg;
 
@@ -46,7 +45,6 @@ builder.defineStreamHandler(async ({ type, id }) => {
         // Carica gli episodi solo se non sono già stati caricati
         if (!meta.episodes) {
             console.log(`Caricamento episodi per ${id}`);
-            // **CORREZIONE: Passa seriesLink e baseId a getEpisodes**
             meta.episodes = await getEpisodes(meta.seriesLink, meta.baseId);
             metaCache.set(id, meta); // Aggiorna la cache con gli episodi
         }
@@ -73,7 +71,7 @@ builder.defineStreamHandler(async ({ type, id }) => {
 });
 
 builder.defineCatalogHandler(async (args) => {
-    console.log("Catalog Handler chiamato con:", args);
+    console.log("Catalog Handler chiamato con:", args); // Aggiungi questo log
     if (args.type === 'series' && args.id === 'rama_series') {
         return seriesCatalog(args);
     }
