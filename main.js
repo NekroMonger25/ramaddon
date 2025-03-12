@@ -1,83 +1,85 @@
 import pkg from 'stremio-addon-sdk';
 import seriesCatalog from './rama_series.js';
-import filmsCatalog from './rama_films.js';
 import { getMeta } from './episodes.js';
-import { getEpisodes } from './streams.js';
 
 const { addonBuilder, serveHTTP } = pkg;
+const META_CACHE_TTL = 600000;
 
 const manifest = {
     "id": "community.ramaorientalfansub",
-    "version": "1.0.5",
-    "name": "Rama Oriental Fansub",
-    "description": "Addon per visualizzare serie e film coreani dal sito Rama Oriental Fansub",
+    "version": "1.0.6",
+    "name": "Rama Oriental Fansub +",
+    "description": "Addon migliorato con scraper avanzato",
     "catalogs": [
         {
             "type": "series",
             "id": "rama_series",
             "name": "Serie Coreane",
-            "extra": [{"name": "skip"}]
-        },
-        {
-            "type": "movie",
-            "id": "rama_films",
-            "name": "Film Coreani",
-            "extra": [{"name": "skip"}]
+            "extra": [{ "name": "skip" }]
         }
+       
     ],
-    "resources": ["catalog", "meta", "stream"], // Aggiunto stream
-    "types": ["series", "movie"],
-    "logo": "https://ramaorientalfansub.tv/wp-content/uploads/2023/10/cropped-Logo-1.png",
-    "background": "https://ramaorientalfansub.tv/wp-content/uploads/2023/10/2860055-e1696595653601.jpg"
+   "resources": ["catalog", "meta", "stream"],
+  "types": ["series"],
+  "logo": "https://ramaorientalfansub.tv/wp-content/uploads/2023/10/cropped-Logo-1.png",
+  "background": "https://ramaorientalfansub.tv/wp-content/uploads/2023/10/2860055-e1696595653601.jpg"
 };
 
 const builder = new addonBuilder(manifest);
+const metaCache = new Map();
 
-// **GESTORE STREAM**
+
 builder.defineStreamHandler(async ({ type, id }) => {
-    if (type !== "series") {
-        return Promise.resolve({ streams: [] });
+    try {
+        if (type !== "series") return { streams: [] };
+
+        let meta = metaCache.get(id);
+        if (!meta || Date.now() - meta.timestamp > META_CACHE_TTL) {
+            const result = await getMeta(id);
+            meta = result.meta;
+            metaCache.set(id, { ...meta, timestamp: Date.now() });
+        }
+
+        return {
+            streams: meta.episodes?.flatMap(ep => 
+                ep.streams.map(stream => ({
+                    title: `${ep.title} - ${stream.title}`,
+                    url: stream.url,
+                    type: "video/mp4",
+                    behaviorHints: { bingeGroup: id }
+                }))
+            ) || []
+        };
+    } catch (error) {
+        console.error(`Handler Error: ${error.message}`);
+        return { streams: [] };
     }
-
-    console.log(`Richiesta stream per ID: ${id}`);
-
-    const episodes = await getEpisodes(`https://ramaorientalfansub.tv/drama/${id}/`);
-
-    if (!episodes || episodes.length === 0) {
-        console.warn(`Nessun episodio trovato per ${id}`);
-        return Promise.resolve({ streams: [] });
-    }
-
-    const streams = episodes.flatMap(ep => 
-        ep.streams.map(stream => ({
-            title: `${ep.title} - ${stream.title}`,
-            url: stream.url,
-            type: "video/mp4",
-            behaviorHints: {
-                bingeGroup: id, 
-                notWebReady: false 
-            }
-        }))
-    );
-
-    return Promise.resolve({ streams });
 });
 
-
-// **GESTORE CATALOGHI**
 builder.defineCatalogHandler(async (args) => {
+    console.log("Catalog Handler chiamato con:", args); // Aggiungi questo log
     if (args.type === 'series' && args.id === 'rama_series') {
-        return seriesCatalog(args);
-    } else if (args.type === 'movie' && args.id === 'rama_films') {
-        return filmsCatalog(args);
+      return seriesCatalog(args);
+    
     }
-});
-
-// **GESTORE METADATI**
-builder.defineMetaHandler(async (args) => getMeta(args.id));
-
-export default builder.getInterface();
-
-// **AVVIA IL SERVER**
-serveHTTP(builder.getInterface(), { port: 7000 });
-console.log(`Addon server is running at http://localhost:7000/manifest.json`);
+    return { metas: [] }; // Aggiungi un return di default
+  });
+  
+  builder.defineMetaHandler(async (args) => {
+    let meta = metaCache.get(args.id);
+    if (!meta) {
+      try {
+        const metaResult = await getMeta(args.id);
+        meta = metaResult.meta;
+        metaCache.set(args.id, meta);
+      } catch (error) {
+        console.error(`Errore nel caricamento dei metadati per ${args.id}:`, error);
+        return { meta: null };
+      }
+    }
+  
+    return { meta: { ...meta, extra: meta.extra } };
+  });
+  
+  serveHTTP(builder.getInterface(), { port: 7000 });
+  console.log(`Addon server is running at http://localhost:7000/manifest.json`);
