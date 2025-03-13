@@ -1,7 +1,6 @@
 import cloudscraper from 'cloudscraper';
 import * as cheerio from 'cheerio';
 
-
 const userAgents = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0',
@@ -77,31 +76,27 @@ async function getCatalog(skip = 0) {
             const poster = $(element).find('img.lazyload').attr('data-src');
             const tagElement = $(element).find('div.text-xs.text-text-color.w-full.line-clamp-1.absolute.bottom-1.text-opacity-75 span.inline-block.md\\:mlb-3.uppercase');
             const tagText = tagElement.text().trim().toLowerCase();
-            
+
             if (tagText.includes('tv')) { // Aggiungi questa condizione
-
-            if (title && link) {
-                const formattedTitle = title.replace(/\s+/g, '-').toLowerCase().replace(/[()]/g, '');
-                const meta = {
-                    id: formattedTitle,
-                    type: 'series',
-                    name: title,
-                    poster: poster,
-                    description: title,
-                    imdbRating: "N/A",
-                    released: 2024,
-                };
-
-                
-                catalog.push(meta);
-                foundItemsOnPage++;
+                if (title && link) {
+                    const formattedTitle = title.replace(/\s+/g, '-').toLowerCase().replace(/[()]/g, '');
+                    const meta = {
+                        id: formattedTitle,
+                        type: 'series',
+                        name: title,
+                        poster: poster,
+                        description: title,
+                        imdbRating: "N/A",
+                        released: 2024,
+                    };
+                    catalog.push(meta);
+                    foundItemsOnPage++;
+                }
             }
-        }
         });
 
         pageNumber++;
     }
-
     return catalog;
 }
 
