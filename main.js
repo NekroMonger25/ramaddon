@@ -1,7 +1,6 @@
-// main.js
 import pkg from 'stremio-addon-sdk';
 import seriesCatalog from './rama_series.js';
-import { getMeta, getEpisodes } from './episodes.js'; // Importa getEpisodes
+import { getMeta } from './episodes.js';
 
 const { addonBuilder, serveHTTP } = pkg;
 
@@ -29,24 +28,28 @@ const manifest = {
 const builder = new addonBuilder(manifest);
 const metaCache = new Map();
 
+// Variabile per tracciare l'ID corrente durante lo scraping degli stream
+let currentStreamId = null;
+
 builder.defineStreamHandler(async ({ type, id }) => {
     try {
         if (type !== "series") return { streams: [] };
 
-        let meta = metaCache.get(id);
+        // Imposta l'ID corrente per evitare scraping non necessari
+        currentStreamId = id;
 
+        let meta = metaCache.get(id);
         if (!meta) {
-            // Se le meta informazioni non sono in cache, recuperale
             const metaResult = await getMeta(id);
             meta = metaResult.meta;
             metaCache.set(id, meta);
-        }
 
-        // Carica gli episodi solo se non sono già stati caricati
-        if (!meta.episodes) {
-            console.log(`Caricamento episodi per ${id}`);
-            meta.episodes = await getEpisodes(meta.seriesLink, meta.baseId);
-            metaCache.set(id, meta); // Aggiorna la cache con gli episodi
+            // Carica gli episodi solo se non sono già stati caricati
+            if (!meta.episodes) {
+                console.log(`Caricamento episodi per ${id}`);
+                meta.episodes = await getEpisodes(meta.seriesLink, meta.baseId);
+                metaCache.set(id, meta); // Aggiorna la cache con gli episodi
+            }
         }
 
         if (meta.episodes) {
@@ -65,8 +68,11 @@ builder.defineStreamHandler(async ({ type, id }) => {
             return { streams: [] };
         }
     } catch (error) {
-        console.error(`Stream Handler Error: ${error.message}`);
+        console.error(`Handler Error: ${error.message}`);
         return { streams: [] };
+    } finally {
+        // Resetta l'ID corrente dopo lo scraping
+        currentStreamId = null;
     }
 });
 
@@ -79,6 +85,11 @@ builder.defineCatalogHandler(async (args) => {
 });
 
 builder.defineMetaHandler(async (args) => {
+    // Verifica se è lo stesso ID dello stream corrente
+    if (currentStreamId === args.id) {
+        return; // Ignora la richiesta
+    }
+
     let meta = metaCache.get(args.id);
     if (!meta) {
         try {

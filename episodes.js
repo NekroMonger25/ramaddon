@@ -47,17 +47,15 @@ async function fetchWithCloudscraper(url, retries = 2) {
             if (response.statusCode >= 200 && response.statusCode < 300) {
                 console.log(`✅ [${i + 1}/${retries}] Successo: ${url}`);
                 return response.body;
+            } else {
+                console.warn(`⚠️ [${i + 1}/${retries}] Errore HTTP ${response.statusCode} per ${url}`);
+                await new Promise(resolve => setTimeout(resolve, 2000));
             }
-
-            console.warn(`⚠️ [${i + 1}/${retries}] Errore HTTP ${response.statusCode} per ${url}`);
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
         } catch (error) {
             // Gestione errori senza mostrare l'HTML
-            const errorMessage = error.response 
+            const errorMessage = error.response
                 ? `Errore ${error.response.statusCode}: ${error.message}`
                 : error.message;
-
             console.warn(`⚠️ [${i + 1}/${retries}] ${errorMessage}`);
             if (error.message.includes('Cloudflare')) {
                 await new Promise(resolve => setTimeout(resolve, 10000));
@@ -91,27 +89,30 @@ async function getMeta(id) {
         const $ = cheerio.load(data);
         meta.name = $('a.text-accent').text().trim();
         meta.poster = $('img.wp-post-image').attr('src');
+
         // **NUOVA LOGICA PER RECUPERARE LA THUMBNAIL**
-    let thumbnail = $('div.thumbnail_url_episode_list > img').attr('data-src'); // Prova a prendere l'immagine con il nuovo selettore
-    if (!thumbnail) {
-      thumbnail = $('img.wp-post-image').attr('src'); // Se non la trova, usa il metodo precedente
-      console.log('Usando thumbnail wp-post-image'); // Log per debug
-    } else {
-      console.log('Usando thumbnail thumbnail_url_episode_list'); // Log per debug
-    }
-    meta.poster = thumbnail; // Assegna la thumbnail (trovata con uno dei due metodi) al poster
+        let thumbnail = $('div.thumbnail_url_episode_list > img').attr('data-src'); // Prova a prendere l'immagine con il nuovo selettore
+        if (!thumbnail) {
+            thumbnail = $('img.wp-post-image').attr('src'); // Se non la trova, usa il metodo precedente
+            console.log('Usando thumbnail wp-post-image'); // Log per debug
+        } else {
+            console.log('Usando thumbnail thumbnail_url_episode_list'); // Log per debug
+        }
+
+        meta.poster = thumbnail; // Assegna la thumbnail (trovata con uno dei due metodi) al poster
 
         let description = $('div.font-light > div:nth-child(1)').text().trim();
         if (meta.extra && meta.extra.tag) {
             description += ` [${meta.extra.tag.toUpperCase()}]`;
         }
+
         meta.description = description;
         meta.seriesLink = seriesLink;
         meta.baseId = baseId;
-
         metaCache.set(id, meta);
-       // Recupera gli episodi
-        //meta.episodes = await getEpisodes(seriesLink, $, baseId); // Passa baseId a getEpisodes  //Rimosso per caricare gli episodi solo quando richiesto
+
+        // Recupera gli episodi
+        meta.episodes = await getEpisodes(seriesLink, $, baseId); // Passa baseId a getEpisodes
 
         // Aggiungi i link degli episodi alla descrizione
         if (meta.episodes && meta.episodes.length > 0) {
@@ -128,7 +129,8 @@ async function getMeta(id) {
 
     return { meta };
 }
-async function getEpisodes(seriesLink, baseId) { // baseId come parametro
+
+async function getEpisodes(seriesLink, $, baseId) { // baseId come parametro
     try {
         const episodes = [];
         const baseEpisodeUrl = seriesLink.replace('/drama/', '/watch/');
@@ -136,6 +138,7 @@ async function getEpisodes(seriesLink, baseId) { // baseId come parametro
         seriesId = seriesId.replace(/,/g, '-').toLowerCase();
         seriesId = seriesId.replace(/--+/g, '-');
         let seriesYear = null;
+
         try {
             const titleText = $('title').text();
             const yearMatch = titleText.match(/\b(19|20)\d{2}\b/);
@@ -148,44 +151,51 @@ async function getEpisodes(seriesLink, baseId) { // baseId come parametro
 
         let episodeNumber = 1;
         while (true) {
-            const episodeId = seriesYear
-                ? `${seriesId}-episodio-${episodeNumber}-${seriesYear}`
-                : `${seriesId}-episodio-${episodeNumber}`;
-            const episodeUrl = `${baseEpisodeUrl}${episodeId}/`;
-            const episodeUrlWithoutYear = `${baseEpisodeUrl}${seriesId}-episodio-${episodeNumber}/`;
-            let episodeLink = episodeUrl;
+            const episodeId = seriesYear ? `${baseId}-${seriesYear}` : baseId; // Usa baseId
+            const episodeLink = `https://ramaorientalfansub.tv/watch/${episodeId}-episodio-${episodeNumber}/`;
 
-            // Prova prima l'URL con l'anno, poi senza
-            let episodeData = await fetchWithCloudscraper(episodeUrl);
-            if (!episodeData) {
-                episodeLink = episodeUrlWithoutYear;
-                episodeData = await fetchWithCloudscraper(episodeUrlWithoutYear);
-                if (!episodeData) {
-                    console.log(`Nessun episodio trovato per ${episodeUrl} o ${episodeUrlWithoutYear}`);
-                    break; // Esci dal ciclo se non trovi l'episodio
+            try {
+                const stream = await getStream(episodeLink);
+                if (!stream) {
+                    console.warn(`Nessuno stream trovato per ${episodeLink}. Interrompo.`);
+                    break; // Interrompi il ciclo while
                 }
-            }
 
-            const $$ = cheerio.load(episodeData);
-            const episodeTitle = $$('h1.entry-title').text().trim();
-            if (!episodeTitle) {
-                console.log(`Titolo episodio non trovato per ${episodeUrl}`);
-                break; // Esci se non trovi il titolo
-            }
+                const episodeData = await fetchWithCloudscraper(episodeLink);
+                if (!episodeData) {
+                    console.warn(`Nessun dato ricevuto per ${episodeLink} durante il recupero della miniatura.`);
+                    break;
+                }
 
-            const stream = await getStream(episodeLink);
-            if (stream) {
+                const $$ = cheerio.load(episodeData); // Usa un'istanza separata di Cheerio
+                // **Selettore per la miniatura**
+                const thumbnailElement = $$('div.thumbnail_url_episode_list img.lazyloaded');
+                let thumbnailUrl = thumbnailElement.attr('data-src');
+                if (!thumbnailUrl) {
+                    thumbnailUrl = thumbnailElement.attr('src'); //Fallback a src
+                }
+
+                if (!thumbnailUrl) {
+                    console.warn(`Nessuna miniatura trovata per ${episodeLink}`);
+                    thumbnailUrl = null; // Imposta a null se non trovata
+                }
+
                 episodes.push({
-                    id: episodeId,
-                    title: episodeTitle,
-                    released: new Date(),
-                    streams: [{ url: stream, title: 'ROF' }]
+                    id: `episodio-${episodeNumber}`,
+                    title: `Episodio ${episodeNumber}`,
+                    thumbnail: 'thumbnailUrl',
+                    streams: [{
+                        title: `Episodio ${episodeNumber}`,
+                        url: stream,
+                        type: "video/mp4"
+                    }]
                 });
-                console.log(`Aggiunto episodio: ${episodeTitle} da ${episodeUrl}`);
-            } else {
-                console.warn(`Nessuno stream trovato per ${episodeUrl}`);
+            } catch (error) {
+                console.error(`Errore durante il recupero dello stream per ${episodeLink}:`, error);
+                break; // Interrompi il ciclo while anche in caso di errore
             }
-        
+
+            episodeNumber++;
         }
         return episodes;
     } catch (err) {
@@ -193,4 +203,5 @@ async function getEpisodes(seriesLink, baseId) { // baseId come parametro
         return [];
     }
 }
-export { getMeta, getEpisodes }; // Esporta getEpisodes
+
+export { getMeta };
