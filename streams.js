@@ -42,7 +42,6 @@ async function fetchWithCloudscraper(url, retries = 3) {
                 timeout: 10000,
                 resolveWithFullResponse: true
             });
-
             if (response.statusCode === 404) {
                 console.warn(`[${i + 1}/${retries}] Errore 404 per ${url}. Interrompo i tentativi.`);
                 return null;
@@ -58,38 +57,94 @@ async function fetchWithCloudscraper(url, retries = 3) {
         } catch (error) {
             console.error(`[${i + 1}/${retries}] Errore Cloudscraper per ${url}: ${error.message}`);
             if (error.message.includes('Cloudflare')) {
+                console.warn(`[${i + 1}/${retries}] Rilevato Cloudflare. Attendo 10 secondi...`);
                 await new Promise(resolve => setTimeout(resolve, 10000));
             } else {
+                console.warn(`[${i + 1}/${retries}] Errore generico. Attendo 2 secondi...`);
                 await new Promise(resolve => setTimeout(resolve, 2000));
             }
         }
     }
-    console.error(`[Errore finale] Impossibile recuperare ${url} dopo ${retries} tentativi.`);
+    console.error(`[FETCH_FAILED] Impossibile recuperare ${url} dopo ${retries} tentativi.`);
     return null;
 }
 
 async function getStream(episodeLink) {
+    let streamUrl = null;
     try {
-        console.log(`[getStream] Recupero stream per ${episodeLink}`);
-        const episodeData = await fetchWithCloudscraper(episodeLink);
-
-        if (!episodeData) {
-            console.warn(`[getStream] Nessun dato ricevuto per ${episodeLink}`);
+        const data = await fetchWithCloudscraper(episodeLink);
+        if (!data) {
+            console.warn(`Nessun dato ricevuto per ${episodeLink}`);
             return null;
         }
 
-        const $ = cheerio.load(episodeData);
-
-        let videoUrl = $('video > source').attr('src');
-        if (!videoUrl) {
-            console.warn(`[getStream] Nessun URL video trovato per ${episodeLink}`);
-            return null;
+        const $ = cheerio.load(data);
+        // 1. Cerca l'iframe all'interno del div con classe 'episode-player-box'
+        const episodePlayerBox = $('div.episode-player-box');
+        if (episodePlayerBox.length > 0) {
+            const iframe = episodePlayerBox.find('iframe');
+            if (iframe.length > 0) {
+                streamUrl = iframe.attr('src') || iframe.attr('data-src');
+                if (streamUrl) {
+                    streamUrl = encodeURI(streamUrl);
+                    console.log(`Trovato stream tramite iframe in episode-player-box: ${streamUrl}`);
+                } else {
+                    console.warn(`Attributo src o data-src mancante nel tag per ${episodeLink}`);
+                    return null;
+                }
+            } else {
+                console.warn(`Nessun tag trovato all'interno del div.episode-player-box per ${episodeLink}`);
+                return null;
+            }
+        } else {
+            console.warn(`Nessun div con classe 'episode-player-box' trovato per ${episodeLink}`);
         }
 
-        console.log(`[getStream] URL video trovato: ${videoUrl}`);
-        return videoUrl;
-    } catch (error) {
-        console.error(`[getStream] Errore durante il recupero dello stream per ${episodeLink}:`, error);
+        // 2. Se non trovato, cerca il tag con i tag all'interno
+        if (!streamUrl) {
+            // Cerca il tag
+            let videoTag = $('video[name="media"]'); // Seleziona il video con name="media"
+            if (videoTag.length === 0) {
+                console.warn(`Nessun tag trovato per ${episodeLink}. Provo con $('video')`);
+                videoTag = $('video'); // Seleziona qualsiasi video
+            }
+            if (videoTag.length > 0) {
+                // Cerca i tag all'interno del tag
+                const sourceTag = videoTag.find('source'); // Seleziona il tag source
+                if (sourceTag.length > 0) {
+                    const sourceSrc = sourceTag.attr('src'); // Ottieni l'attributo src del tag source
+                    if (sourceSrc) {
+                        streamUrl = sourceSrc;
+                        console.log(`Trovato stream tramite tag : ${streamUrl}`);
+                    } else {
+                        console.warn(`Attributo src mancante nel tag  per ${episodeLink}`);
+                    }
+                } else {
+                    console.warn(`Nessun tag trovato all'interno del tag  per ${episodeLink}`);
+                }
+            } else {
+                console.warn(`Nessun tag  trovato per ${episodeLink}`);
+            }
+        }
+        if (!streamUrl) {
+            $('a[href*="streamingrof.online"]').each((i, el) => {
+                const href = $(el).attr('href');
+                if (href && href.includes('streamingrof.online')) {
+                    streamUrl = href;
+                    console.log(`Trovato stream tramite link: ${streamUrl}`);
+                    return false; // Interrompe il ciclo .each()
+                }
+            });
+        }
+
+        if (streamUrl) {
+            return streamUrl;
+        } else {
+            console.warn(`Nessuno stream trovato per ${episodeLink}`);
+            return null;
+        }
+    } catch (err) {
+        console.error(`Errore durante il recupero dello stream per ${episodeLink}:`, err);
         return null;
     }
 }
