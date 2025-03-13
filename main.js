@@ -28,16 +28,10 @@ const manifest = {
 const builder = new addonBuilder(manifest);
 const metaCache = new Map();
 
-// Variabile per tracciare l'ID corrente durante lo scraping degli stream
-let currentStreamId = null;
-
+// Stream Handler
 builder.defineStreamHandler(async ({ type, id }) => {
     try {
         if (type !== "series") return { streams: [] };
-
-        // Imposta l'ID corrente per evitare scraping non necessari
-        currentStreamId = id;
-
         let meta = metaCache.get(id);
         if (!meta) {
             const metaResult = await getMeta(id);
@@ -47,6 +41,7 @@ builder.defineStreamHandler(async ({ type, id }) => {
             // Carica gli episodi solo se non sono già stati caricati
             if (!meta.episodes) {
                 console.log(`Caricamento episodi per ${id}`);
+                const { getEpisodes } = await import('./episodes.js'); // Import dinamico
                 meta.episodes = await getEpisodes(meta.seriesLink, meta.baseId);
                 metaCache.set(id, meta); // Aggiorna la cache con gli episodi
             }
@@ -70,38 +65,32 @@ builder.defineStreamHandler(async ({ type, id }) => {
     } catch (error) {
         console.error(`Handler Error: ${error.message}`);
         return { streams: [] };
-    } finally {
-        // Resetta l'ID corrente dopo lo scraping
-        currentStreamId = null;
     }
 });
 
+// Catalog Handler
 builder.defineCatalogHandler(async (args) => {
-    console.log("Catalog Handler chiamato con:", args); // Aggiungi questo log
+    console.log("Catalog Handler chiamato con:", args);
     if (args.type === 'series' && args.id === 'rama_series') {
         return seriesCatalog(args);
     }
-    return { metas: [] }; // Aggiungi un return di default
+    return { metas: [] };
 });
 
+// Meta Handler
 builder.defineMetaHandler(async (args) => {
-    // Verifica se è lo stesso ID dello stream corrente
-    if (currentStreamId === args.id) {
-        return; // Ignora la richiesta
-    }
-
-    let meta = metaCache.get(args.id);
-    if (!meta) {
-        try {
+    try {
+        let meta = metaCache.get(args.id);
+        if (!meta) {
             const metaResult = await getMeta(args.id);
             meta = metaResult.meta;
             metaCache.set(args.id, meta);
-        } catch (error) {
-            console.error(`Errore nel caricamento dei metadati per ${args.id}:`, error);
-            return { meta: null };
         }
+        return { meta: { ...meta, extra: meta.extra } };
+    } catch (error) {
+        console.error(`Errore nel caricamento dei metadati per ${args.id}:`, error);
+        return { meta: null };
     }
-    return { meta: { ...meta, extra: meta.extra } };
 });
 
 serveHTTP(builder.getInterface(), { port: 7000 });

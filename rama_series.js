@@ -97,6 +97,12 @@ async function getCatalog(skip = 0) {
 
         pageNumber++;
     }
+  
+    if (catalog.length === 0 && skip > 0) {
+        console.warn("Nessun altro elemento trovato. Fine del catalogo.");
+        return { metas: [] };
+    }
+
     return catalog;
 }
 
