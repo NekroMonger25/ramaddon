@@ -21,8 +21,8 @@ const manifest = {
     ],
    "resources": ["catalog", "meta", "stream"],
   "types": ["series"],
-  "logo": "https://ramaorientalfansub.tv/wp-content/uploads/2023/10/cropped-Logo-1.png",
-  "background": "https://ramaorientalfansub.tv/wp-content/uploads/2023/10/2860055-e1696595653601.jpg"
+  "logo": "https://i.imgur.com/i7VdVv7.png",
+  "background": "https://i.imgur.com/mtsxMk7.jpeg"
 };
 
 const builder = new addonBuilder(manifest);
