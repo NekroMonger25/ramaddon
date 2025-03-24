@@ -163,7 +163,21 @@ async function getEpisodes(seriesLink, $) { //  Ricevi $ come parametro
             if (thumbnailUrl) {
 
                 const episodeLink = `https://ramaorientalfansub.tv/watch/${seriesId}-episodio-${episodeNumber}/`;  // Ricostruisci il link
-                
+
+
+
+                try {
+                const stream = await getStream(episodeLink);
+                if (!stream) {
+                    console.warn(`Nessuno stream trovato per ${episodeLink}. Interrompo.`);
+                    break; // Interrompi il ciclo while
+                }
+
+                const episodeData = await fetchWithCloudscraper(episodeLink);
+                if (!episodeData) {
+                    console.warn(`Nessun dato ricevuto per ${episodeLink} durante il recupero della miniatura.`);
+                    break;
+                }
                 episodes.push({
                     id: `episodio-${episodeNumber}`,
                     title: `Episodio ${episodeNumber}`,
