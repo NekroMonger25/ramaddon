@@ -21,7 +21,7 @@ const manifest = {
     ],
    "resources": ["catalog", "meta", "stream"],
   "types": ["series"],
-  "logo": "https://i.imgur.com/i7VdVv7.png",
+  "logo": "https://i.imgur.com/ng154Sj.png",
   "background": "https://i.imgur.com/mtsxMk7.jpeg"
 };
 

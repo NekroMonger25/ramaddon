@@ -70,7 +70,7 @@ async function getCatalog(skip = 0) {
             if (catalog.length >= itemsToLoad) return false;
 
             // Recupera l'immagine del poster
-            const posterElement = $(element).find('img.object-cover');
+            const posterElement = $(element).find('div:nth-child(1) > img');
             let poster = posterElement.attr('data-src') || posterElement.attr('src');
             if (!poster) {
             console.warn(`Poster mancante per l'elemento ${index}`);
@@ -85,8 +85,16 @@ async function getCatalog(skip = 0) {
             const tagElement = $(element).find('div.text-xs.text-text-color.w-full.line-clamp-1.absolute.bottom-1.text-opacity-75 span.inline-block.md\\:mlb-3.uppercase');
             const tagText = tagElement.text().trim().toLowerCase();
 
-            
-            
+             // Selettore per il testo da escludere
+            const excludeElement = $(element).find('div.bg-gradient-to-t > div > div:nth-child(3) > span:nth-child(2)');
+            const excludeText = excludeElement.text().trim();
+
+            // Condizione per escludere 'E ?'
+            if (excludeText.includes('E ?')) {
+                return true; // Salta questo elemento
+            }
+
+                        
             if (tagText.includes('tv')) { // Aggiungi questa condizione
 
             if (title && link) {
@@ -96,8 +104,8 @@ async function getCatalog(skip = 0) {
                     type: 'series',
                     name: title,
                     poster: poster || 'https://example.com/default-poster.jpg',
-                    description: title,
-                    imdbRating: "N/A",
+                    // description: title,
+                    // imdbRating: "N/A",
                     released: 2024,
                 };
 
