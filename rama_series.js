@@ -66,17 +66,26 @@ async function getCatalog(skip = 0) {
         const $ = cheerio.load(data);
         let foundItemsOnPage = 0;
 
-        $('div.w-full.bg-gradient-to-t.from-primary').each((index, element) => {
-            if (catalog.length >= itemsToLoad) {
-                return false;
-            }
+        $('div.bg-gradient-to-t').each((index, element) => {
+            if (catalog.length >= itemsToLoad) return false;
 
+            // Recupera l'immagine del poster
+            const posterElement = $(element).find('img.object-cover');
+            let poster = posterElement.attr('data-src') || posterElement.attr('src');
+            if (!poster) {
+            console.warn(`Poster mancante per l'elemento ${index}`);
+                return true; // Continua il ciclo
+            }
+            // const poster = posterElement.attr('src');
             const titleElement = $(element).find('a.text-sm.line-clamp-2.font-medium.leading-snug.lg\\:leading-normal');
             const title = titleElement.text().trim();
             const link = titleElement.attr('href');
-            const poster = $(element).find('img.lazyload').attr('data-src');
+            // const poster = $(element).find('img.object-cover').attr('src');
+            // const poster = $(element).find('img.object-cover').attr('data-src');
             const tagElement = $(element).find('div.text-xs.text-text-color.w-full.line-clamp-1.absolute.bottom-1.text-opacity-75 span.inline-block.md\\:mlb-3.uppercase');
             const tagText = tagElement.text().trim().toLowerCase();
+
+            
             
             if (tagText.includes('tv')) { // Aggiungi questa condizione
 
@@ -86,7 +95,7 @@ async function getCatalog(skip = 0) {
                     id: formattedTitle,
                     type: 'series',
                     name: title,
-                    poster: poster,
+                    poster: poster || 'https://example.com/default-poster.jpg',
                     description: title,
                     imdbRating: "N/A",
                     released: 2024,
