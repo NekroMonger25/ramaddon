@@ -170,7 +170,7 @@ async function getEpisodes(seriesLink, $) { //  Ricevi $ come parametro
                     thumbnail: thumbnailUrl,  // Usa la thumbnail estratta
                     streams: [{
                         title: `Episodio ${episodeNumber}`,
-                        url: episodeLink,   // Ho sostituito stream con episodeLink
+                        url: stream, // episodeLink,   // Ho sostituito stream con episodeLink
                         type: "video/mp4"  //Ho cambiato per adattarmi al nuovo link
                     }]
                 });
