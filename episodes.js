@@ -166,7 +166,7 @@ async function getEpisodes(seriesLink, $) { //  Ricevi $ come parametro
 
 
 
-                try {
+                
                 const stream = await getStream(episodeLink);
                 if (!stream) {
                     console.warn(`Nessuno stream trovato per ${episodeLink}. Interrompo.`);
