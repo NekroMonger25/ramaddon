@@ -102,17 +102,17 @@ async function getStream(episodeLink) {
 
         // 2. Se non trovato, cerca il tag con i tag all'interno
         if (!streamUrl) {
-            // Cerca il tag
-            let videoTag = $('video[name="media"]'); // Seleziona il video con name="media"
+            
+            let videoTag = $('video[name="media"]');
             if (videoTag.length === 0) {
                 console.warn(`Nessun tag trovato per ${episodeLink}. Provo con $('video')`);
-                videoTag = $('video'); // Seleziona qualsiasi video
+                videoTag = $('video');
             }
             if (videoTag.length > 0) {
                 // Cerca i tag all'interno del tag
-                const sourceTag = videoTag.find('source'); // Seleziona il tag source
+                const sourceTag = videoTag.find('source');
                 if (sourceTag.length > 0) {
-                    const sourceSrc = sourceTag.attr('src'); // Ottieni l'attributo src del tag source
+                    const sourceSrc = sourceTag.attr('src');
                     if (sourceSrc) {
                         streamUrl = sourceSrc;
                         console.log(`Trovato stream tramite tag : ${streamUrl}`);
@@ -132,7 +132,7 @@ async function getStream(episodeLink) {
                 if (href && href.includes('streamingrof.online')) {
                     streamUrl = href;
                     console.log(`Trovato stream tramite link: ${streamUrl}`);
-                    return false; // Interrompe il ciclo .each()
+                    return false;
                 }
             });
         }

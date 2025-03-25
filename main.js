@@ -21,7 +21,7 @@ const manifest = {
     ],
    "resources": ["catalog", "meta", "stream"],
   "types": ["series"],
-  "logo": "https://i.imgur.com/ng154Sj.png",
+  "logo": "https://i.imgur.com/i7VdVv7.png",
   "background": "https://i.imgur.com/mtsxMk7.jpeg"
 };
 
@@ -40,7 +40,7 @@ builder.defineStreamHandler(async ({ type, id }) => {
           metaCache.set(id, meta);
       }
 
-      // Carica gli episodi solo se non sono già stati caricati
+      
       if (!meta.episodes) {
         console.log(`Caricamento episodi per ${id}`);
         meta.episodes = await getEpisodes(meta.seriesLink, meta.baseId);
@@ -70,12 +70,12 @@ builder.defineStreamHandler(async ({ type, id }) => {
 });
 
 builder.defineCatalogHandler(async (args) => {
-    console.log("Catalog Handler chiamato con:", args); // Aggiungi questo log
+    // console.log("Catalog Handler chiamato con:", args); // Aggiungi questo log
     if (args.type === 'series' && args.id === 'rama_series') {
       return seriesCatalog(args);
     
     }
-    return { metas: [] }; // Aggiungi un return di default
+    return { metas: [] };
   });
   
   builder.defineMetaHandler(async (args) => {

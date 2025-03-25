@@ -8,7 +8,10 @@
       "type": "series",
       "id": "rama_series",
       "name": "Serie Coreane",
-      "extra": [{ "name": "skip" }]
+      "extra": [
+            { "name": "search", "isRequired": false },
+            { "name": "skip", "isRequired": false }
+        ]
     }
    
   ],

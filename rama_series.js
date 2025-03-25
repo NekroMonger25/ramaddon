@@ -37,10 +37,23 @@ const ITEMS_PER_PAGE = 25;
 const MAX_PAGES = 35;
 const catalogCache = new Map();
 
-async function getCatalog(skip = 0) {
+// Funzione per pulire il titolo dai duplicati
+function cleanTitle(title) {
+    const words = title.split(/\s+/); // Dividi la stringa in parole
+    const uniqueWords = [];
+    for (const word of words) {
+        if (uniqueWords.indexOf(word) === -1) {
+            uniqueWords.push(word);
+        }
+    }
+    return uniqueWords.join(' '); // Ricongiungi le parole uniche
+}
+
+async function getCatalog(skip = 0, searchQuery = '') {
     const catalog = [];
     let pageNumber = Math.floor(skip / ITEMS_PER_PAGE) + 1;
     let itemsToLoad = ITEMS_PER_PAGE;
+    let foundItemsOnPage = 0;
 
     while (catalog.length < itemsToLoad && pageNumber <= MAX_PAGES) {
         const pageUrl = `${BASE_URL}page/${pageNumber}/`;
@@ -64,51 +77,56 @@ async function getCatalog(skip = 0) {
         }
 
         const $ = cheerio.load(data);
-        let foundItemsOnPage = 0;
-
+        
         $('div.bg-gradient-to-t').each((index, element) => {
             if (catalog.length >= itemsToLoad) return false;
 
-            // Recupera l'immagine del poster
-            const posterElement = $(element).find('div:nth-child(1) > img');
-            let poster = posterElement.attr('data-src') || posterElement.attr('src');
+            
+            const posterElement = $(element).find('.w-full.bg-gradient-to-t > .block.relative > img');
+            let poster = posterElement.attr('src');
             if (!poster) {
-            console.warn(`Poster mancante per l'elemento ${index}`);
-                return true; // Continua il ciclo
+                console.warn(`Poster mancante per l'elemento ${index}`);
+                return true;
             }
-            // const poster = posterElement.attr('src');
+
             const titleElement = $(element).find('a.text-sm.line-clamp-2.font-medium.leading-snug.lg\\:leading-normal');
-            const title = titleElement.text().trim();
+            let title = titleElement.text().trim();
+            
+             // Pulisci il titolo
+             title = cleanTitle(title);
+
+            // Filtra i risultati in base alla query di ricerca
+            if (searchQuery && !title.toLowerCase().includes(searchQuery)) {
+                return true; // Salta questo elemento se non corrisponde alla ricerca
+            }
+
+            
             const link = titleElement.attr('href');
-            // const poster = $(element).find('img.object-cover').attr('src');
-            // const poster = $(element).find('img.object-cover').attr('data-src');
+
             const tagElement = $(element).find('div.text-xs.text-text-color.w-full.line-clamp-1.absolute.bottom-1.text-opacity-75 span.inline-block.md\\:mlb-3.uppercase');
             const tagText = tagElement.text().trim().toLowerCase();
 
-             // Selettore per il testo da escludere
             const excludeElement = $(element).find('div.bg-gradient-to-t > div > div:nth-child(3) > span:nth-child(2)');
             const excludeText = excludeElement.text().trim();
 
-            // Condizione per escludere 'E ?'
             if (excludeText.includes('E ?')) {
-                return true; // Salta questo elemento
+                return true;
             }
 
-                        
-            if (tagText.includes('tv')) { // Aggiungi questa condizione
+            if (tagText.includes('tv')) {
+                if (title && link) {
+                    if (searchQuery && !title.toLowerCase().includes(searchQuery)) {
+                        return true; // Salta questo elemento se non corrisponde alla ricerca
+                    }
 
-            if (title && link) {
-                const formattedTitle = title.replace(/\s+/g, '-').toLowerCase().replace(/[()]/g, '');
-                const meta = {
-                    id: formattedTitle,
-                    type: 'series',
-                    name: title,
-                    poster: poster || 'https://example.com/default-poster.jpg',
-                    // description: title,
-                    // imdbRating: "N/A",
-                    released: 2024,
-                };
-
+                    const formattedTitle = title.replace(/\s+/g, '-').toLowerCase().replace(/[()]/g, '');
+                    const meta = {
+                        id: formattedTitle,
+                        type: 'series',
+                        name: title,
+                        poster: poster || 'https://example.com/default-poster.jpg',
+                        released: 2024,
+                    };
                 
                 catalog.push(meta);
                 foundItemsOnPage++;
@@ -124,6 +142,7 @@ async function getCatalog(skip = 0) {
 
 export default async function (args) {
     const skip = args.extra?.skip || 0;
-    const metas = await getCatalog(skip);
+    const searchQuery = args.extra?.search || '';
+    const metas = await getCatalog(skip, searchQuery);
     return { metas };
 };
