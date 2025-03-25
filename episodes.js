@@ -3,7 +3,6 @@ import cloudscraper from 'cloudscraper';
 import * as cheerio from 'cheerio';
 import { getStream } from './streams.js';
 
-
 const metaCache = new Map();
 
 async function fetchWithCloudscraper(url, retries = 2) {
@@ -43,10 +42,12 @@ async function fetchWithCloudscraper(url, retries = 2) {
                 console.warn(`⚠️ [404] Pagina non trovata: ${url}`);
                 return null;
             }
+
             if (response.statusCode >= 200 && response.statusCode < 300) {
                 console.log(`✅ [${i + 1}/${retries}] Successo: ${url}`);
                 return response.body;
             }
+
             console.warn(`⚠️ [${i + 1}/${retries}] Errore HTTP ${response.statusCode} per ${url}`);
             await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (error) {
@@ -71,7 +72,6 @@ async function getMeta(id) {
     const cleanId = id.replace(/,/g, '-').toLowerCase();
     const baseId = cleanId.replace(/-\d{4}$/, '');
     const seriesLink = `https://ramaorientalfansub.tv/drama/${baseId}/`;
-
     if (metaCache.has(id)) {
         const cachedMeta = metaCache.get(id);
         return { meta: { ...cachedMeta } }; // Restituisci una copia per evitare modifiche dirette
@@ -85,14 +85,11 @@ async function getMeta(id) {
         }
 
         const $ = cheerio.load(data);
-
         meta.name = $('a.text-accent').text().trim();
         // Mantieni questo poster, è l'immagine principale della serie
-        meta.poster = $('img.wp-post-image').attr('src');  // poster è l'immagine principale
-
+        meta.poster = $('img.wp-post-image').attr('src'); // poster è l'immagine principale
         let description = $('div.font-light > div:nth-child(1)').text().trim();
         let state = $('span.font-normal:nth-child(1)').text().trim();
-
         const extraTextElement = $('span.font-normal.leading-6');
         const extraText = extraTextElement.text().trim();
         if (extraText) {
@@ -110,32 +107,27 @@ async function getMeta(id) {
         meta.seriesLink = seriesLink;
         meta.baseId = baseId;
         metaCache.set(id, meta);
-
         // Recupera gli episodi (MODIFICATO per ottenere miniature corrette)
-        meta.episodes = await getEpisodes(seriesLink, $); //  Passa $ (l'oggetto Cheerio)
-
+        meta.episodes = await getEpisodes(seriesLink, $); // Passa $ (l'oggetto Cheerio)
         // Aggiungi i link degli episodi (Invariato)
         if (meta.episodes && meta.episodes.length > 0) {
             meta.episodes.forEach(episode => {
                 `- ${episode.title}: ${episode.streams[0].url}\n`;
             });
             meta.description = description;
-
             metaCache.set(id, meta);
             return { meta };
         } else {
-          console.warn(`Nessun episodio trovato per ${seriesLink}`);
-          return {meta}; // Restituire meta anche se non ci sono episodi
+            console.warn(`Nessun episodio trovato per ${seriesLink}`);
+            return { meta }; // Restituire meta anche se non ci sono episodi
         }
-
-
     } catch (error) {
         console.error('Errore nel caricamento dei dettagli della serie:', error);
         return { meta };
     }
 }
 
-async function getEpisodes(seriesLink, $) { //  Ricevi $ come parametro
+async function getEpisodes(seriesLink, $) {
     try {
         const episodes = [];
         const baseEpisodeUrl = seriesLink.replace('/drama/', '/watch/');
@@ -143,7 +135,6 @@ async function getEpisodes(seriesLink, $) { //  Ricevi $ come parametro
         seriesId = seriesId.replace(/,/g, '-').toLowerCase();
         seriesId = seriesId.replace(/--+/g, '-');
         let seriesYear = null;
-
         try {
             const titleText = $('title').text();
             const yearMatch = titleText.match(/\b(19|20)\d{2}\b/);
@@ -155,36 +146,30 @@ async function getEpisodes(seriesLink, $) { //  Ricevi $ come parametro
             console.error('Errore durante il recupero dell\'anno della serie:', error);
         }
 
-
         // **NUOVA LOGICA PER LE THUMBNAIL (corretta)**
-        $('.swiper-slide a div img').each((index, element) => {  // Selettore corretto
-            const episodeNumber = index + 1;  // gli episodi partono da 1
-            const thumbnailUrl = $(element).attr('src');  // Prendi l'src direttamente
+        const episodeElements = $('.swiper-slide a div img').toArray(); // Ottieni un array degli elementi
+        for (let i = 0; i < episodeElements.length; i++) { // Usa un ciclo for...of per gestire async/await
+            const element = episodeElements[i];
+            const episodeNumber = i + 1; // gli episodi partono da 1
+            const thumbnailUrl = $(element).attr('src'); // Prendi l'src direttamente
             if (thumbnailUrl) {
+                const episodeLink = `https://ramaorientalfansub.tv/watch/${seriesId}-${seriesYear}-episodio-${episodeNumber}/`; // Ricostruisci il link
+                const streamUrl = await getStream(episodeLink); // Richiama getStream correttamente
 
-                const episodeLink = `https://ramaorientalfansub.tv/watch/${seriesId}-episodio-${episodeNumber}/`;  // Ricostruisci il link
-
-
-                const episodeData = await fetchWithCloudscraper(episodeLink);
-                if (!episodeData) {
-                    console.warn(`Nessun dato ricevuto per ${episodeLink} durante il recupero della miniatura.`);
-                    break;
-                }
                 episodes.push({
                     id: `episodio-${episodeNumber}`,
                     title: `Episodio ${episodeNumber}`,
-                    thumbnail: thumbnailUrl,  // Usa la thumbnail estratta
+                    thumbnail: thumbnailUrl, // Usa la thumbnail estratta
                     streams: [{
                         title: `Episodio ${episodeNumber}`,
-                        url: episodeLink,   // Ho sostituito stream con episodeLink
-                        type: "video/mp4"  //Ho cambiato per adattarmi al nuovo link
+                        url: streamUrl || episodeLink,
+                        type: "video/mp4"
                     }]
                 });
             } else {
                 console.warn(`Nessuna thumbnail trovata per l'episodio ${episodeNumber}`);
             }
-        });
-
+        }
         return episodes;
     } catch (err) {
         console.error('Errore durante il recupero degli episodi:', err);
