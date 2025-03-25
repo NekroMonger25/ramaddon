@@ -37,7 +37,6 @@ async function fetchWithCloudscraper(url, retries = 2) {
                 timeout: 10000,
                 resolveWithFullResponse: true // Aggiungi questa opzione
             });
-
             // Gestione 404 semplificata
             if (response.statusCode === 404) {
                 console.warn(`⚠️ [404] Pagina non trovata: ${url}`);
@@ -47,10 +46,10 @@ async function fetchWithCloudscraper(url, retries = 2) {
             if (response.statusCode >= 200 && response.statusCode < 300) {
                 console.log(`✅ [${i + 1}/${retries}] Successo: ${url}`);
                 return response.body;
-            } else {
-                console.warn(`⚠️ [${i + 1}/${retries}] Errore HTTP ${response.statusCode} per ${url}`);
-                await new Promise(resolve => setTimeout(resolve, 2000));
             }
+
+            console.warn(`⚠️ [${i + 1}/${retries}] Errore HTTP ${response.statusCode} per ${url}`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (error) {
             // Gestione errori senza mostrare l'HTML
             const errorMessage = error.response
@@ -73,7 +72,6 @@ async function getMeta(id) {
     const cleanId = id.replace(/,/g, '-').toLowerCase();
     const baseId = cleanId.replace(/-\d{4}$/, '');
     const seriesLink = `https://ramaorientalfansub.tv/drama/${baseId}/`;
-
     if (metaCache.has(id)) {
         const cachedMeta = metaCache.get(id);
         return { meta: { ...cachedMeta } }; // Restituisci una copia per evitare modifiche dirette
@@ -88,20 +86,19 @@ async function getMeta(id) {
 
         const $ = cheerio.load(data);
         meta.name = $('a.text-accent').text().trim();
-        meta.poster = $('img.wp-post-image').attr('src');
-
-        // **NUOVA LOGICA PER RECUPERARE LA THUMBNAIL**
-        let thumbnail = $('div.thumbnail_url_episode_list > img').attr('data-src'); // Prova a prendere l'immagine con il nuovo selettore
-        if (!thumbnail) {
-            thumbnail = $('img.wp-post-image').attr('src'); // Se non la trova, usa il metodo precedente
-            console.log('Usando thumbnail wp-post-image'); // Log per debug
+        // Mantieni questo poster, è l'immagine principale della serie
+        meta.poster = $('img.wp-post-image').attr('src'); // poster è l'immagine principale
+        let description = $('div.font-light > div:nth-child(1)').text().trim();
+        let state = $('span.font-normal:nth-child(1)').text().trim();
+        const extraTextElement = $('span.font-normal.leading-6');
+        const extraText = extraTextElement.text().trim();
+        if (extraText) {
+            description += `\n${state}`;
+            console.log(`Testo aggiunto alla descrizione: ${state}`);
         } else {
-            console.log('Usando thumbnail thumbnail_url_episode_list'); // Log per debug
+            console.log('Nessun testo trovato con il selettore specificato.');
         }
 
-        meta.poster = thumbnail; // Assegna la thumbnail (trovata con uno dei due metodi) al poster
-
-        let description = $('div.font-light > div:nth-child(1)').text().trim();
         if (meta.extra && meta.extra.tag) {
             description += ` [${meta.extra.tag.toUpperCase()}]`;
         }
@@ -110,27 +107,27 @@ async function getMeta(id) {
         meta.seriesLink = seriesLink;
         meta.baseId = baseId;
         metaCache.set(id, meta);
-
-        // Recupera gli episodi
-        meta.episodes = await getEpisodes(seriesLink, $, baseId); // Passa baseId a getEpisodes
-
-        // Aggiungi i link degli episodi alla descrizione
+        // Recupera gli episodi (MODIFICATO per ottenere miniature corrette)
+        meta.episodes = await getEpisodes(seriesLink, $); // Passa $ (l'oggetto Cheerio)
+        // Aggiungi i link degli episodi (Invariato)
         if (meta.episodes && meta.episodes.length > 0) {
-            description += "\n\nEpisodi:\n";
             meta.episodes.forEach(episode => {
-                description += `- ${episode.title}: ${episode.streams[0].url}\n`;
+                `- ${episode.title}: ${episode.streams[0].url}\n`;
             });
+            meta.description = description;
+            metaCache.set(id, meta);
+            return { meta };
+        } else {
+            console.warn(`Nessun episodio trovato per ${seriesLink}`);
+            return { meta }; // Restituire meta anche se non ci sono episodi
         }
-
-        metaCache.set(id, meta);
     } catch (error) {
         console.error('Errore nel caricamento dei dettagli della serie:', error);
+        return { meta };
     }
-
-    return { meta };
 }
 
-async function getEpisodes(seriesLink, $, baseId) { // baseId come parametro
+async function getEpisodes(seriesLink, $) {
     try {
         const episodes = [];
         const baseEpisodeUrl = seriesLink.replace('/drama/', '/watch/');
@@ -138,64 +135,40 @@ async function getEpisodes(seriesLink, $, baseId) { // baseId come parametro
         seriesId = seriesId.replace(/,/g, '-').toLowerCase();
         seriesId = seriesId.replace(/--+/g, '-');
         let seriesYear = null;
-
         try {
             const titleText = $('title').text();
             const yearMatch = titleText.match(/\b(19|20)\d{2}\b/);
             if (yearMatch) {
                 seriesYear = yearMatch[0];
+                console.log(`Anno della serie trovato: ${seriesYear}`);
             }
         } catch (error) {
             console.error('Errore durante il recupero dell\'anno della serie:', error);
         }
 
-        let episodeNumber = 1;
-        while (true) {
-            const episodeId = seriesYear ? `${baseId}-${seriesYear}` : baseId; // Usa baseId
-            const episodeLink = `https://ramaorientalfansub.tv/watch/${episodeId}-episodio-${episodeNumber}/`;
-
-            try {
-                const stream = await getStream(episodeLink);
-                if (!stream) {
-                    console.warn(`Nessuno stream trovato per ${episodeLink}. Interrompo.`);
-                    break; // Interrompi il ciclo while
-                }
-
-                const episodeData = await fetchWithCloudscraper(episodeLink);
-                if (!episodeData) {
-                    console.warn(`Nessun dato ricevuto per ${episodeLink} durante il recupero della miniatura.`);
-                    break;
-                }
-
-                const $$ = cheerio.load(episodeData); // Usa un'istanza separata di Cheerio
-                // **Selettore per la miniatura**
-                const thumbnailElement = $$('div.thumbnail_url_episode_list img.lazyloaded');
-                let thumbnailUrl = thumbnailElement.attr('data-src');
-                if (!thumbnailUrl) {
-                    thumbnailUrl = thumbnailElement.attr('src'); //Fallback a src
-                }
-
-                if (!thumbnailUrl) {
-                    console.warn(`Nessuna miniatura trovata per ${episodeLink}`);
-                    thumbnailUrl = null; // Imposta a null se non trovata
-                }
+        // **NUOVA LOGICA PER LE THUMBNAIL (corretta)**
+        const episodeElements = $('.swiper-slide a div img').toArray(); // Ottieni un array degli elementi
+        for (let i = 0; i < episodeElements.length; i++) { // Usa un ciclo for...of per gestire async/await
+            const element = episodeElements[i];
+            const episodeNumber = i + 1; // gli episodi partono da 1
+            const thumbnailUrl = $(element).attr('src'); // Prendi l'src direttamente
+            if (thumbnailUrl) {
+                const episodeLink = `https://ramaorientalfansub.tv/watch/${seriesId}-${seriesYear}-episodio-${episodeNumber}/`; // Ricostruisci il link
+                const streamUrl = await getStream(episodeLink); // Richiama getStream correttamente
 
                 episodes.push({
                     id: `episodio-${episodeNumber}`,
                     title: `Episodio ${episodeNumber}`,
-                    thumbnail: 'thumbnailUrl',
+                    thumbnail: thumbnailUrl, // Usa la thumbnail estratta
                     streams: [{
                         title: `Episodio ${episodeNumber}`,
-                        url: stream,
+                        url: streamUrl || episodeLink,
                         type: "video/mp4"
                     }]
                 });
-            } catch (error) {
-                console.error(`Errore durante il recupero dello stream per ${episodeLink}:`, error);
-                break; // Interrompi il ciclo while anche in caso di errore
+            } else {
+                console.warn(`Nessuna thumbnail trovata per l'episodio ${episodeNumber}`);
             }
-
-            episodeNumber++;
         }
         return episodes;
     } catch (err) {
